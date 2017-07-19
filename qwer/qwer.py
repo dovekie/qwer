@@ -1,16 +1,35 @@
 import os
 import sqlite3
+import json
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
 
-app = Flask(__name__)
-app.config.from_object(__name__)
+qwer = Flask(__name__)
 
-app.config.update(dict(
-	DATABASE=os.path.join(app.root_path, 'qwer.db'),
+qwer.config.from_object(__name__)
+
+qwer.config.update(dict(
+	DATABASE=os.path.join(qwer.root_path, 'qwer.db'),
 	SECRET_KEY='development key',
 	USERNAME='admin',
 	PASSWORD='default'
 ))
 
-app.config.from_envvar('QWER_SETTINGS', silent=True)
+qwer.config.from_envvar('QWER_SETTINGS', silent=True)
 
+@qwer.route('/')
+def index():
+	resp = {'data': {},
+			'links': {'self': 'http://127.0.0.1:5000/',
+					  'start a job': 'http://127.0.0.1:5000/job',
+					  'check job status': 'http://127.0.0.1:5000/job?id=[id]'
+					  }
+			}
+	return json.dumps(resp)
+
+@qwer.route('/job')
+def start_job():
+	""" Add a job to the queue """
+
+
+if __name__ == '__main__':
+    qwer.run()
