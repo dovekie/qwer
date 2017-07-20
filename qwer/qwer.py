@@ -31,6 +31,16 @@ def start_job():
 	""" Add a job to the queue """
 	return 'this is where you would upload a job'
 
+#######################
+# DATABASE CONNECTION #
+#######################
+
+def connect_db():
+    """Connects to the specific database."""
+    rv = sqlite3.connect(app.config['DATABASE'])
+    rv.row_factory = sqlite3.Row
+    return rv
+
 def get_db():
     """Opens a new database connection if there is none yet for the
     current application context.
