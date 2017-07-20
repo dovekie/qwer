@@ -28,8 +28,7 @@ def index():
 					  'check job status': 'http://127.0.0.1:5000/job?id=[id]'
 					  }
 			}
-	return 'root path {}'.format(qwer.root_path)
-	#json.dumps(resp)
+	return json.dumps(resp)
 
 @qwer.route('/job', methods=['GET'])
 def show_jobs():

@@ -1,1 +1,0 @@
-from .qwer import app
