@@ -34,10 +34,21 @@ def index():
 def show_jobs():
 	""" Get jobs from the queue """
 	db = get_db()
-	cursor = db.execute('SELECT id, status, location FROM jobs ORDER BY id DESC')
+	cursor = db.execute('SELECT id, status, location, data FROM jobs ORDER BY id DESC')
 	entries = cursor.fetchall()
+	data = {}
+	for entry in entries:
+		data[entry['id']] = {
+			'status': entry['status'],
+			'location': entry['location'],
+			'links': {
+				'run query': 'http://127.0.0.1:5000/run?id={}'.format(entry['id']),
+				'view data': 'http://127.0.0.1:5000/job?id={}'.format(entry['id'])
+			}
+		}
 
-	return 'I found a thing! {}'.format(entries[0])
+
+	return '{}'.format(json.dumps(data))
 
 @qwer.route('/job', methods=['POST'])
 def start_job():
