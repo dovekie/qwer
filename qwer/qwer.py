@@ -31,6 +31,19 @@ def start_job():
 	""" Add a job to the queue """
 	return 'this is where you would upload a job'
 
+def get_db():
+    """Opens a new database connection if there is none yet for the
+    current application context.
+    """
+    if not hasattr(g, 'sqlite_db'):
+        g.sqlite_db = connect_db()
+    return g.sqlite_db
+
+@qwer.teardown_appcontext
+def close_db(error):
+    """Closes the database again at the end of the request."""
+    if hasattr(g, 'sqlite_db'):
+        g.sqlite_db.close()
 
 if __name__ == '__main__':
     qwer.run()
