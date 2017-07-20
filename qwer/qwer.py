@@ -16,6 +16,10 @@ qwer.config.update(dict(
 
 qwer.config.from_envvar('QWER_SETTINGS', silent=True)
 
+#########
+# VIEWS #
+#########
+
 @qwer.route('/')
 def index():
 	resp = {'data': {},
@@ -24,12 +28,25 @@ def index():
 					  'check job status': 'http://127.0.0.1:5000/job?id=[id]'
 					  }
 			}
-	return json.dumps(resp)
+	return 'root path {}'.format(qwer.root_path)
+	#json.dumps(resp)
 
-@qwer.route('/job')
+@qwer.route('/job', methods=['GET'])
+def show_jobs():
+	""" Get jobs from the queue """
+	db = get_db()
+	cursor = db.execute('SELECT id, status, location FROM jobs ORDER BY id DESC')
+	entries = cursor.fetchall()
+
+	return 'I found a thing! {}'.format(entries[0])
+
+@qwer.route('/job', methods=['POST'])
 def start_job():
 	""" Add a job to the queue """
-	return 'this is where you would upload a job'
+	db = get_db()
+	db.execute('INSERT INTO jobs (status, location) values (?, ?)', ['new', request.form['location']])
+	db.commit()
+	return redirect(url_for('show_jobs'))
 
 #######################
 # DATABASE CONNECTION #
@@ -37,9 +54,21 @@ def start_job():
 
 def connect_db():
     """Connects to the specific database."""
-    rv = sqlite3.connect(app.config['DATABASE'])
+    rv = sqlite3.connect(qwer.config['DATABASE'])
     rv.row_factory = sqlite3.Row
     return rv
+
+def init_db():
+    db = get_db()
+    with qwer.open_resource('schema.sql', mode='r') as f:
+        db.cursor().executescript(f.read())
+    db.commit()
+
+@qwer.cli.command('initdb')
+def initdb_command():
+    """Initializes the database."""
+    init_db()
+    print('Initialized the database.')
 
 def get_db():
     """Opens a new database connection if there is none yet for the
