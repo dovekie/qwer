@@ -1,0 +1,3 @@
+graft qwer/templates
+graft qwer/static
+include qwer/schema.sql

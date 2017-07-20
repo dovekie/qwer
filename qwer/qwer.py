@@ -29,6 +29,7 @@ def index():
 @qwer.route('/job')
 def start_job():
 	""" Add a job to the queue """
+	return 'this is where you would upload a job'
 
 
 if __name__ == '__main__':
