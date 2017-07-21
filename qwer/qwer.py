@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import json
+import requests
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
 
 qwer = Flask(__name__)
@@ -75,6 +76,37 @@ def show_jobs(jobId=None):
 		}
 
 	return '{}'.format(json.dumps(data))
+
+@qwer.route('/run/<jobId>', methods=['GET'])
+def run_job(jobId):
+	db = get_db()
+	cursor = db.execute('SELECT location FROM jobs WHERE id = (?)', [jobId])
+	entries = cursor.fetchall()
+	q = MasterQueue()
+	for entry in entries:
+		q.add_to_q(jobId, entry[0])
+		
+	return 'Job added to queue: {}'.format(jobId)
+
+############
+# QUEUEING #
+############
+
+class MasterQueue(object):
+
+	def __new__(cls):
+		# This makes sure we only have one MasterQueue
+		if not hasattr(cls, 'instance'):
+
+			cls.instance = super(MasterQueue, cls).__new__(cls)
+
+		return cls.instance
+
+	q = Queue(maxsize=0) # if maxsize is less than one, the queue has no maximum size
+
+	def add_to_q(jobId, location):
+		q.put((jobId, location))
+
 
 #######################
 # DATABASE CONNECTION #
