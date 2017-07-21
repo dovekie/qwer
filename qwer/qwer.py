@@ -32,6 +32,7 @@ def index():
 
 @qwer.route('/job/', methods=['GET', 'POST'])
 @qwer.route('/job/<jobId>', methods=['GET'])
+@qwer.route('/job/<jobId>', methods=['DELETE'])
 def show_jobs(jobId=None):
 	""" Get jobs from the queue """
 	if request.method == 'POST':
@@ -41,17 +42,23 @@ def show_jobs(jobId=None):
 		db.commit()
 		return redirect(url_for('show_jobs'))
 	if jobId:
-		db = get_db()
-		cursor = db.execute('SELECT id, status, location, data FROM jobs WHERE id = (?)', [jobId])
-		entries = cursor.fetchall()
-		for entry in entries:
-			data = {'data': {'id': entry[0],
-					'status': entry[1],
-					'location': entry[2],
-					'data': entry[3]
+		if request.method == 'GET':
+			db = get_db()
+			cursor = db.execute('SELECT id, status, location, data FROM jobs WHERE id = (?)', [jobId])
+			entries = cursor.fetchall()
+			data = {}
+			for entry in entries:
+				data = {'data': {'id': entry[0],
+						'status': entry[1],
+						'location': entry[2],
+						'data': entry[3]
+						}
 					}
-				}
-		return '{}'.format(json.dumps(data))
+			return '{}'.format(json.dumps(data))
+		elif request.method == 'DELETE':
+			db = get_db()
+			db.execute('DELETE FROM jobs WHERE id = (?)', [jobId])
+			db.commit()
 
 	db = get_db()
 	cursor = db.execute('SELECT id, status, location, data FROM jobs ORDER BY id DESC')
