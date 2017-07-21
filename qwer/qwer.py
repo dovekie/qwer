@@ -30,9 +30,29 @@ def index():
 			}
 	return json.dumps(resp)
 
-@qwer.route('/job', methods=['GET'])
-def show_jobs():
+@qwer.route('/job/', methods=['GET', 'POST'])
+@qwer.route('/job/<jobId>', methods=['GET'])
+def show_jobs(jobId=None):
 	""" Get jobs from the queue """
+	if request.method == 'POST':
+		""" Add a job to the queue """
+		db = get_db()
+		db.execute('INSERT INTO jobs (status, location) values (?, ?)', ['new', request.form['location']])
+		db.commit()
+		return redirect(url_for('show_jobs'))
+	if jobId:
+		db = get_db()
+		cursor = db.execute('SELECT id, status, location, data FROM jobs WHERE id = (?)', [jobId])
+		entries = cursor.fetchall()
+		for entry in entries:
+			data = {'data': {'id': entry[0],
+					'status': entry[1],
+					'location': entry[2],
+					'data': entry[3]
+					}
+				}
+		return '{}'.format(json.dumps(data))
+
 	db = get_db()
 	cursor = db.execute('SELECT id, status, location, data FROM jobs ORDER BY id DESC')
 	entries = cursor.fetchall()
@@ -42,21 +62,12 @@ def show_jobs():
 			'status': entry['status'],
 			'location': entry['location'],
 			'links': {
-				'run query': 'http://127.0.0.1:5000/run?id={}'.format(entry['id']),
-				'view data': 'http://127.0.0.1:5000/job?id={}'.format(entry['id'])
+				'run query': 'http://127.0.0.1:5000/run/{}'.format(entry['id']),
+				'view data': 'http://127.0.0.1:5000/job/{}'.format(entry['id'])
 			}
 		}
 
-
 	return '{}'.format(json.dumps(data))
-
-@qwer.route('/job', methods=['POST'])
-def start_job():
-	""" Add a job to the queue """
-	db = get_db()
-	db.execute('INSERT INTO jobs (status, location) values (?, ?)', ['new', request.form['location']])
-	db.commit()
-	return redirect(url_for('show_jobs'))
 
 #######################
 # DATABASE CONNECTION #
