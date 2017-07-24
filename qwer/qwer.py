@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import json
-import requests
+import pika
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
 
 qwer = Flask(__name__)
@@ -82,31 +82,25 @@ def run_job(jobId):
 	db = get_db()
 	cursor = db.execute('SELECT location FROM jobs WHERE id = (?)', [jobId])
 	entries = cursor.fetchall()
-	q = MasterQueue()
 	for entry in entries:
-		q.add_to_q(jobId, entry[0])
-		
+		add_to_queue(jobId, entry[0])
+
 	return 'Job added to queue: {}'.format(jobId)
 
 ############
 # QUEUEING #
 ############
 
-class MasterQueue(object):
+def add_to_queue(jobId, location):
 
-	def __new__(cls):
-		# This makes sure we only have one MasterQueue
-		if not hasattr(cls, 'instance'):
+	connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+	channel = connection.channel()
+	channel.queue_declare(queue='jobs')
 
-			cls.instance = super(MasterQueue, cls).__new__(cls)
-
-		return cls.instance
-
-	q = Queue(maxsize=0) # if maxsize is less than one, the queue has no maximum size
-
-	def add_to_q(jobId, location):
-		q.put((jobId, location))
-
+	channel.basic_publish(exchange='',
+	                      routing_key='jobs',
+	                      body=jobId + ' ' + location)
+	connection.close()
 
 #######################
 # DATABASE CONNECTION #
@@ -143,6 +137,13 @@ def close_db(error):
     """Closes the database again at the end of the request."""
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
+
+def write_data_to_db(jobId, data):
+	"""Add data from a job's location to its entry in the database"""
+	print 'DB writing method was called for {}'.format(jobId)
+	# db = get_db()
+	# cursor = db.execute('UPDATE jobs SET data = (?) FROM jobs WHERE id = (?)', [data, jobId])
+	# db.commit()
 
 if __name__ == '__main__':
     qwer.run()
