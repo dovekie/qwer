@@ -3,6 +3,8 @@ import sqlite3
 import json
 import pika
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
+from model import Job, connect_to_db
+from model import db as alchemy_db
 
 qwer = Flask(__name__)
 
@@ -38,18 +40,15 @@ def show_jobs(jobId=None):
 	""" Get jobs from the queue """
 	if request.method == 'POST':
 		""" Add a job to the queue """
-		db = get_db()
-		db.execute('INSERT INTO jobs (status, location) values (?, ?)', ['new', request.form['location']])
-		db.commit()
+		new_job = Job(status='new', location=request.form['location'])
+		alchemy_db.session.add(new_job)
+		alchemy_db.session.commit()
 		return redirect(url_for('show_jobs'))
 	if jobId:
 		if request.method == 'GET':
-			db = get_db()
-			cursor = db.execute('SELECT id, status, location, data FROM jobs WHERE id = (?)', [jobId])
-			entries = cursor.fetchall()
-			data = {}
-			for entry in entries:
-				data = {'data': {'id': entry[0],
+			entry = alchemy_db.session.query(Job.id, Job.status, Job.location, Job.data).filter(Job.id == jobId).first()
+
+			data = {'data': {'id': entry[0],
 						'status': entry[1],
 						'location': entry[2],
 						'data': entry[3]
@@ -57,21 +56,18 @@ def show_jobs(jobId=None):
 					}
 			return '{}'.format(json.dumps(data))
 		elif request.method == 'DELETE':
-			db = get_db()
-			db.execute('DELETE FROM jobs WHERE id = (?)', [jobId])
-			db.commit()
+			alchemy_db.session.query(Job.id, Job.status, Job.location, Job.data).filter(Job.id == jobId).delete()
+			alchemy_db.session.commit()
 
-	db = get_db()
-	cursor = db.execute('SELECT id, status, location, data FROM jobs ORDER BY id DESC')
-	entries = cursor.fetchall()
+	entries = alchemy_db.session.query(Job.id, Job.status, Job.location, Job.data).all()
 	data = {}
 	for entry in entries:
-		data[entry['id']] = {
-			'status': entry['status'],
-			'location': entry['location'],
+		data[entry[0]] = {
+			'status': entry[1],
+			'location': entry[2],
 			'links': {
-				'run query': 'http://127.0.0.1:5000/run/{}'.format(entry['id']),
-				'view data': 'http://127.0.0.1:5000/job/{}'.format(entry['id'])
+				'run query': 'http://127.0.0.1:5000/run/{}'.format(entry[0]),
+				'view data': 'http://127.0.0.1:5000/job/{}'.format(entry[0])
 			}
 		}
 
@@ -79,11 +75,8 @@ def show_jobs(jobId=None):
 
 @qwer.route('/run/<jobId>', methods=['GET'])
 def run_job(jobId):
-	db = get_db()
-	cursor = db.execute('SELECT location FROM jobs WHERE id = (?)', [jobId])
-	entries = cursor.fetchall()
-	for entry in entries:
-		add_to_queue(jobId, entry[0])
+	entry = alchemy_db.session.query(Job.id, Job.status, Job.location, Job.data).filter(Job.id == jobId).first()
+	add_to_queue(jobId, entry[2])
 
 	return 'Job added to queue: {}'.format(jobId)
 
@@ -99,7 +92,7 @@ def add_to_queue(jobId, location):
 
 	channel.basic_publish(exchange='',
 	                      routing_key='jobs',
-	                      body=jobId + ' ' + location)
+	                      body='{} {}'.format(jobId, location))
 	connection.close()
 
 #######################
@@ -138,12 +131,6 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
-def write_data_to_db(jobId, data):
-	"""Add data from a job's location to its entry in the database"""
-	print 'DB writing method was called for {}'.format(jobId)
-	# db = get_db()
-	# cursor = db.execute('UPDATE jobs SET data = (?) FROM jobs WHERE id = (?)', [data, jobId])
-	# db.commit()
-
 if __name__ == '__main__':
+    connect_to_db(qwer)
     qwer.run()
